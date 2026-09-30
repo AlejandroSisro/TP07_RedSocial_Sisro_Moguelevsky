@@ -21,6 +21,80 @@ body {
   margin-bottom: 60px;
 }
 
+body {
+    background: linear-gradient(180deg, #f4f7ff 0%, #eef2ff 100%);
+    color: #1f2937;
+}
+
+.auth-shell {
+    margin-top: 2rem;
+}
+
+.auth-card,
+.publish-card,
+.publication-card {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 18px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.auth-card {
+    padding: 1.5rem;
+    height: 100%;
+}
+
+.feed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.publish-card {
+    padding: 0.5rem;
+}
+
+.publication-card {
+    overflow: hidden;
+}
+
+.publication-image {
+    width: 100%;
+    max-height: 420px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+}
+
+.likes-count {
+    font-weight: 600;
+    color: #374151;
+}
+
+.comments-box {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 1rem;
+}
+
+.comment-item {
+    padding: 0.55rem 0.75rem;
+    background: #f8fafc;
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+}
+
+.comment-item strong {
+    color: #1d4ed8;
+}
+
+.empty-state {
+    padding: 2rem;
+    text-align: center;
+    color: #6b7280;
+}
+
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
   color: var(--bs-secondary-color);
   text-align: end;
@@ -28,4 +102,11 @@ body {
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
+}
+
+@media (max-width: 768px) {
+    .feed-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }

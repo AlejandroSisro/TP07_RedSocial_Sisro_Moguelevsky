@@ -1,8 +1,355 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+﻿@model TP07_RedSocial_Sisro_Moguelevsky.Models.HomeViewModel
+@{
+    ViewData["Title"] = "Red Social";
+    List<TP07_RedSocial_Sisro_Moguelevsky.Models.Publicacion> publicaciones = ViewBag.Publicaciones as List<TP07_RedSocial_Sisro_Moguelevsky.Models.Publicacion> ?? new List<TP07_RedSocial_Sisro_Moguelevsky.Models.Publicacion>();
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+@if (Model.Usuario == null)
+{
+    <div class="auth-shell">
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="auth-card">
+                    <h2>Iniciar sesión</h2>
+                    <form asp-action="Login" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label class="form-label">Nombre de usuario</label>
+                            <input name="NombreUsuario" class="form-control" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Contraseña</label>
+                            <input name="Contraseña" type="password" class="form-control" required />
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Entrar</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="auth-card">
+                    <h2>Registrarse</h2>
+                    <form asp-action="Registrar" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label class="form-label">Nombre</label>
+                            <input name="Nombre" class="form-control" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Apellido</label>
+                            <input name="Apellido" class="form-control" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Nombre de usuario</label>
+                            <input name="NombreUsuario" class="form-control" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Contraseña</label>
+                            <input name="Contraseña" type="password" class="form-control" required />
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Crear usuario</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="feed-header">
+        <div>
+            <h2>Bienvenido, @Model.Usuario.NombreUsuario</h2>
+            <p class="text-muted mb-0">Mirá las publicaciones y compartí tus momentos.</p>
+        </div>
+        <form asp-action="Logout" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-secondary">Cerrar sesión</button>
+        </form>
+    </div>
+
+    <div class="card publish-card mb-4">
+        <div class="card-body">
+            <h4>Crear una publicación</h4>
+            <form asp-action="CrearPublicacion" method="post">
+                @Html.AntiForgeryToken()
+                <div class="mb-3">
+                    <label class="form-label">URL de imagen</label>
+                    <input name="Imagen" class="form-control" placeholder="https://example.com/imagen.jpg" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Título</label>
+                    <input name="Titulo" class="form-control" maxlength="200" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Descripción</label>
+                    <textarea name="Descripcion" class="form-control" rows="3" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Publicar</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="publicaciones-container">
+        @if (publicaciones.Count > 0)
+        {
+            foreach (TP07_RedSocial_Sisro_Moguelevsky.Models.Publicacion publicacion in publicaciones)
+            {
+                string botonTexto = publicacion.TieneLike ? "Quitar Me Gusta" : "Me Gusta";
+                string botonClase = publicacion.TieneLike ? "btn btn-sm btn-outline-danger" : "btn btn-sm btn-outline-primary";
+
+                <article class="publication-card card shadow-sm mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h5 class="mb-0">@publicacion.Titulo</h5>
+                                <small class="text-muted">@publicacion.NombreUsuario</small>
+                            </div>
+                            <small class="text-muted">@publicacion.FechaPublicacion.ToString("dd/MM/yyyy HH:mm")</small>
+                        </div>
+
+                        <img src="@publicacion.Imagen" alt="@publicacion.Titulo" class="publication-image" onerror="this.src='/uploads/default-post.jpg';" />
+
+                        <p class="mt-3 mb-3">@publicacion.Descripcion</p>
+
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <button type="button" class="@botonClase" data-like-btn="true" data-publicacion-id="@publicacion.Id">@botonTexto</button>
+                            <span class="likes-count" data-like-count="@publicacion.Id">@publicacion.CantidadLikes me gusta</span>
+                        </div>
+
+                        <div class="comments-box">
+                            <h6>Comentarios</h6>
+                            <ul class="list-unstyled mb-3" id="comentarios-@publicacion.Id">
+                                @if (publicacion.Comentarios != null)
+                                {
+                                    foreach (TP07_RedSocial_Sisro_Moguelevsky.Models.Comentario comentario in publicacion.Comentarios)
+                                    {
+                                        <li class="comment-item">
+                                            <strong>@comentario.NombreUsuario:</strong>
+                                            <span>@comentario.Texto</span>
+                                        </li>
+                                    }
+                                }
+                            </ul>
+
+                            <form class="comment-form" data-comment-form="true" data-publicacion-id="@publicacion.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <div class="input-group">
+                                    <textarea name="texto" class="form-control" rows="2" placeholder="Escribí un comentario..."></textarea>
+                                    <button type="submit" class="btn btn-primary">Enviar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+            }
+        }
+    </div>
+
+    <div class="text-center mt-4 mb-5">
+        <button id="btnVerMas" type="button" class="btn btn-outline-primary">Ver más</button>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            const publicacionesContainer = document.getElementById('publicaciones-container');
+            const btnVerMas = document.getElementById('btnVerMas');
+            let offset = @publicaciones.Count;
+
+            function escapeHtml(value) {
+                return String(value ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function renderPublicacion(publicacion) {
+                const comentarios = (publicacion.comentarios || [])
+                    .map(function (comentario) {
+                        return '<li class="comment-item"><strong>' + escapeHtml(comentario.nombreUsuario) + ':</strong> <span>' + escapeHtml(comentario.texto) + '</span></li>';
+                    })
+                    .join('');
+
+                const botonTexto = publicacion.tieneLike ? 'Quitar Me Gusta' : 'Me Gusta';
+                const botonClase = publicacion.tieneLike ? 'btn btn-sm btn-outline-danger' : 'btn btn-sm btn-outline-primary';
+
+                return '<article class="publication-card card shadow-sm mb-4">' +
+                    '<div class="card-body">' +
+                    '<div class="d-flex justify-content-between align-items-center mb-3">' +
+                    '<div><h5 class="mb-0">' + escapeHtml(publicacion.titulo) + '</h5><small class="text-muted">' + escapeHtml(publicacion.nombreUsuario) + '</small></div>' +
+                    '<small class="text-muted">' + new Date(publicacion.fechaPublicacion).toLocaleString() + '</small>' +
+                    '</div>' +
+                    '<img src="' + publicacion.imagen + '" alt="' + escapeHtml(publicacion.titulo) + '" class="publication-image" onerror="this.src=\'/uploads/default-post.jpg\';" />' +
+                    '<p class="mt-3 mb-3">' + escapeHtml(publicacion.descripcion) + '</p>' +
+                    '<div class="d-flex align-items-center gap-2 mb-3">' +
+                    '<button type="button" class="' + botonClase + '" data-like-btn="true" data-publicacion-id="' + publicacion.id + '">' + botonTexto + '</button>' +
+                    '<span class="likes-count" data-like-count="' + publicacion.id + '">' + publicacion.cantidadLikes + ' me gusta</span>' +
+                    '</div>' +
+                    '<div class="comments-box">' +
+                    '<h6>Comentarios</h6>' +
+                    '<ul class="list-unstyled mb-3" id="comentarios-' + publicacion.id + '">' + (comentarios || '<li class="comment-item">Todavía no hay comentarios.</li>') + '</ul>' +
+                    '<form class="comment-form" data-comment-form="true" data-publicacion-id="' + publicacion.id + '" method="post">' +
+                    '<div class="input-group">' +
+                    '<textarea name="texto" class="form-control" rows="2" placeholder="Escribí un comentario..."></textarea>' +
+                    '<button type="submit" class="btn btn-primary">Enviar</button>' +
+                    '</div>' +
+                    '</form>' +
+                    '</div>' +
+                    '</div>' +
+                    '</article>';
+            }
+
+            function getToken() {
+                const input = document.querySelector('input[name="__RequestVerificationToken"]');
+                return input ? input.value : '';
+            }
+
+            function actualizarLike(publicacionId, tieneLike, cantidadLikes) {
+                const boton = document.querySelector('[data-publicacion-id="' + publicacionId + '"][data-like-btn="true"]');
+                const contador = document.querySelector('[data-like-count="' + publicacionId + '"]');
+
+                if (boton) {
+                    boton.textContent = tieneLike ? 'Quitar Me Gusta' : 'Me Gusta';
+                    boton.className = tieneLike ? 'btn btn-sm btn-outline-danger' : 'btn btn-sm btn-outline-primary';
+                }
+
+                if (contador) {
+                    contador.textContent = cantidadLikes + ' me gusta';
+                }
+            }
+
+            async function cargarMasPublicaciones() {
+                if (!btnVerMas) return;
+
+                btnVerMas.disabled = true;
+                btnVerMas.textContent = 'Cargando...';
+
+                try {
+                    const response = await fetch('/Home/ObtenerPublicaciones?offset=' + offset + '&cantidad=10');
+                    const publicacionesJson = await response.json();
+
+                    if (!publicacionesJson || publicacionesJson.length === 0) {
+                        btnVerMas.textContent = 'No hay más publicaciones';
+                        btnVerMas.disabled = true;
+                        return;
+                    }
+
+                    if (publicacionesContainer) {
+                        publicacionesJson.forEach(function (publicacion) {
+                            publicacionesContainer.insertAdjacentHTML('beforeend', renderPublicacion(publicacion));
+                        });
+                    }
+
+                    offset += publicacionesJson.length;
+                    btnVerMas.textContent = 'Ver más';
+                    btnVerMas.disabled = false;
+                }
+                catch (error) {
+                    console.error(error);
+                    btnVerMas.textContent = 'Error al cargar';
+                }
+            }
+
+            document.addEventListener('click', function (event) {
+                const target = event.target.closest('[data-like-btn]');
+                if (!target) {
+                    return;
+                }
+
+                event.preventDefault();
+                const publicacionId = Number(target.dataset.publicacionId);
+
+                fetch('/Home/ToggleLike', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': getToken()
+                    },
+                    body: JSON.stringify({ publicacionId: publicacionId })
+                })
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function (resultado) {
+                    if (!resultado.ok) {
+                        alert(resultado.data.message || 'No se pudo actualizar el like.');
+                        return;
+                    }
+
+                    actualizarLike(publicacionId, resultado.data.tieneLike, resultado.data.cantidadLikes);
+                })
+                .catch(function (error) {
+                    console.error(error);
+                    alert('No se pudo actualizar el like.');
+                });
+            });
+
+            document.addEventListener('submit', function (event) {
+                const form = event.target.closest('[data-comment-form]');
+                if (!form) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                const publicacionId = Number(form.dataset.publicacionId);
+                const textarea = form.querySelector('textarea');
+                const texto = textarea.value.trim();
+
+                if (!texto) {
+                    alert('Escribí un comentario antes de enviar.');
+                    return;
+                }
+
+                fetch('/Home/AgregarComentario', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': getToken()
+                    },
+                    body: JSON.stringify({ publicacionId: publicacionId, texto: texto })
+                })
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function (resultado) {
+                    if (!resultado.ok) {
+                        alert(resultado.data.message || 'No se pudo guardar el comentario.');
+                        return;
+                    }
+
+                    const lista = document.getElementById('comentarios-' + publicacionId);
+                    if (lista) {
+                        const item = document.createElement('li');
+                        item.className = 'comment-item';
+                        item.innerHTML = '<strong>' + escapeHtml(resultado.data.nombreUsuario) + ':</strong> <span>' + escapeHtml(resultado.data.texto) + '</span>';
+
+                        const hayComentarioViejo = lista.querySelector('.comment-item');
+                        if (hayComentarioViejo && hayComentarioViejo.textContent.indexOf('Todavía no hay comentarios') !== -1) {
+                            lista.innerHTML = '';
+                        }
+
+                        lista.appendChild(item);
+                    }
+
+                    textarea.value = '';
+                })
+                .catch(function (error) {
+                    console.error(error);
+                    alert('No se pudo guardar el comentario.');
+                });
+            });
+
+            if (btnVerMas) {
+                btnVerMas.addEventListener('click', cargarMasPublicaciones);
+            }
+        })();
+    </script>
+}
