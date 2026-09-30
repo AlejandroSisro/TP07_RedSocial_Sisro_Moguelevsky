@@ -13,14 +13,49 @@ public class HomeController : Controller
         _logger = logger;
     }
 
+    private bool EstaVacio(string texto)
+    {
+        if (texto == null)
+        {
+            return true;
+        }
+
+        if (texto == "")
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private int ObtenerUsuarioIdDeSesion()
+    {
+        string usuarioIdTexto = HttpContext.Session.GetString("UsuarioId");
+
+        if (usuarioIdTexto == null || usuarioIdTexto == "")
+        {
+            return 0;
+        }
+
+        int usuarioId = 0;
+        int.TryParse(usuarioIdTexto, out usuarioId);
+        return usuarioId;
+    }
+
+    private void GuardarUsuarioIdEnSesion(int usuarioId)
+    {
+        HttpContext.Session.SetString("UsuarioId", usuarioId.ToString());
+    }
+
     public async Task<IActionResult> Index()
     {
-        int? usuarioId = HttpContext.Session.GetInt32("UsuarioId");
+        int usuarioId = ObtenerUsuarioIdDeSesion();
         HomeViewModel model = new HomeViewModel();
 
-        if (usuarioId.HasValue)
+        if (usuarioId > 0)
         {
-            model.Usuario = await BD.ObtenerUsuarioPorIdAsync(usuarioId.Value);
+            model.Usuario = await BD.ObtenerUsuarioPorIdAsync(usuarioId);
+
             if (model.Usuario != null)
             {
                 model.Publicaciones = await BD.ObtenerPublicacionesAsync(model.Usuario.Id, 0, 10);
@@ -37,31 +72,27 @@ public class HomeController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Registrar(RegistroViewModel model)
     {
-        if (string.IsNullOrWhiteSpace(model.Nombre) ||
-            string.IsNullOrWhiteSpace(model.Apellido) ||
-            string.IsNullOrWhiteSpace(model.NombreUsuario) ||
-            string.IsNullOrWhiteSpace(model.Contraseña))
+        if (EstaVacio(model.Nombre) || EstaVacio(model.Apellido) || EstaVacio(model.NombreUsuario) || EstaVacio(model.Contraseña))
         {
             TempData["Error"] = "Complete todos los campos.";
             return RedirectToAction(nameof(Index));
         }
 
-        if (await BD.ExisteUsuarioAsync(model.NombreUsuario.Trim()))
+        bool existe = await BD.ExisteUsuarioAsync(model.NombreUsuario);
+        if (existe)
         {
             TempData["Error"] = "Ese nombre de usuario ya existe.";
             return RedirectToAction(nameof(Index));
         }
 
-        Usuario usuario = new Usuario
-        {
-            Nombre = model.Nombre.Trim(),
-            Apellido = model.Apellido.Trim(),
-            NombreUsuario = model.NombreUsuario.Trim(),
-            Contraseña = model.Contraseña.Trim()
-        };
+        Usuario usuario = new Usuario();
+        usuario.Nombre = model.Nombre;
+        usuario.Apellido = model.Apellido;
+        usuario.NombreUsuario = model.NombreUsuario;
+        usuario.Contraseña = model.Contraseña;
 
         int id = await BD.RegistrarUsuarioAsync(usuario);
-        HttpContext.Session.SetInt32("UsuarioId", id);
+        GuardarUsuarioIdEnSesion(id);
         return RedirectToAction(nameof(Index));
     }
 
@@ -69,13 +100,13 @@ public class HomeController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel model)
     {
-        if (string.IsNullOrWhiteSpace(model.NombreUsuario) || string.IsNullOrWhiteSpace(model.Contraseña))
+        if (EstaVacio(model.NombreUsuario) || EstaVacio(model.Contraseña))
         {
             TempData["Error"] = "Debes completar usuario y contraseña.";
             return RedirectToAction(nameof(Index));
         }
 
-        Usuario usuario = await BD.ObtenerUsuarioPorNombreYClaveAsync(model.NombreUsuario.Trim(), model.Contraseña.Trim());
+        Usuario usuario = await BD.ObtenerUsuarioPorNombreYClaveAsync(model.NombreUsuario, model.Contraseña);
 
         if (usuario == null)
         {
@@ -83,7 +114,7 @@ public class HomeController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        HttpContext.Session.SetInt32("UsuarioId", usuario.Id);
+        GuardarUsuarioIdEnSesion(usuario.Id);
         return RedirectToAction(nameof(Index));
     }
 
@@ -99,28 +130,27 @@ public class HomeController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CrearPublicacion(CrearPublicacionViewModel model)
     {
-        int? usuarioId = HttpContext.Session.GetInt32("UsuarioId");
-        if (!usuarioId.HasValue)
+        int usuarioId = ObtenerUsuarioIdDeSesion();
+
+        if (usuarioId == 0)
         {
             return RedirectToAction(nameof(Index));
         }
 
-        if (string.IsNullOrWhiteSpace(model.Titulo) ||
-            string.IsNullOrWhiteSpace(model.Descripcion) ||
-            string.IsNullOrWhiteSpace(model.Imagen))
+        if (EstaVacio(model.Titulo) || EstaVacio(model.Descripcion) || EstaVacio(model.Imagen))
         {
             TempData["Error"] = "La publicación debe tener imagen, título y descripción.";
             return RedirectToAction(nameof(Index));
         }
 
-        await BD.CrearPublicacionAsync(usuarioId.Value, model.Titulo.Trim(), model.Descripcion.Trim(), model.Imagen.Trim());
+        await BD.CrearPublicacionAsync(usuarioId, model.Titulo, model.Descripcion, model.Imagen);
         return RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
     public async Task<JsonResult> ObtenerPublicaciones(int offset = 0, int cantidad = 10)
     {
-        int usuarioId = HttpContext.Session.GetInt32("UsuarioId") ?? 0;
+        int usuarioId = ObtenerUsuarioIdDeSesion();
         List<Publicacion> publicaciones = await BD.ObtenerPublicacionesAsync(usuarioId, offset, cantidad);
         return Json(publicaciones);
     }
@@ -128,13 +158,15 @@ public class HomeController : Controller
     [HttpPost]
     public async Task<IActionResult> ToggleLike([FromBody] LikeRequest request)
     {
-        int? usuarioId = HttpContext.Session.GetInt32("UsuarioId");
-        if (!usuarioId.HasValue)
+        int usuarioId = ObtenerUsuarioIdDeSesion();
+
+        if (usuarioId == 0)
         {
             return Json(new { message = "Debes iniciar sesión para dar Me Gusta." });
         }
 
-        (bool TieneLike, int CantidadLikes) resultado = await BD.ToggleLikeAsync(usuarioId.Value, request.PublicacionId);
+        (bool TieneLike, int CantidadLikes) resultado = await BD.ToggleLikeAsync(usuarioId, request.PublicacionId);
+
         return Json(new
         {
             tieneLike = resultado.TieneLike,
@@ -146,18 +178,20 @@ public class HomeController : Controller
     [HttpPost]
     public async Task<IActionResult> AgregarComentario([FromBody] ComentarioRequest request)
     {
-        int? usuarioId = HttpContext.Session.GetInt32("UsuarioId");
-        if (!usuarioId.HasValue)
+        int usuarioId = ObtenerUsuarioIdDeSesion();
+
+        if (usuarioId == 0)
         {
             return Json(new { message = "Debes iniciar sesión para comentar." });
         }
 
-        if (string.IsNullOrWhiteSpace(request.Texto))
+        if (EstaVacio(request.Texto))
         {
             return Json(new { message = "El comentario no puede estar vacío." });
         }
 
-        (string NombreUsuario, string Texto) resultado = await BD.AgregarComentarioAsync(usuarioId.Value, request.PublicacionId, request.Texto.Trim());
+        (string NombreUsuario, string Texto) resultado = await BD.AgregarComentarioAsync(usuarioId, request.PublicacionId, request.Texto);
+
         return Json(new
         {
             nombreUsuario = resultado.NombreUsuario,
